@@ -62,3 +62,35 @@
 3. `libevent` 扩展 或者 Event 扩展
     * `libevent` 扩展(或者event扩展)使得 PHP 可以使用系统 Epoll、Kqueue 等高级**事件处理机制**，能够显著提高WorkerMan在高并发连接时CPU利用率。
     * 在高并发长连接相关应用中非常重要。libevent 扩展(或者 event 扩展)不是必须的， *如果没安装，则默认使用 PHP 原生 Select 事件处理机制*。
+
+
+#### 启动与停止: http://doc.workerman.net/315117
+* 貌似只有在 linux 的环境下才有守护进程, 平滑重启
+```
+启动
+以debug（调试）方式启动
+php start.php start
+
+以daemon（守护进程）方式启动
+php start.php start -d
+
+停止
+php start.php stop
+
+重启
+php start.php restart
+
+平滑重启
+php start.php reload
+
+查看状态
+php start.php status
+
+查看连接状态（需要Workerman版本>=3.5.0）
+php start.php connections
+```
+
+* 平滑重启的原理 以及注意点:
+    * 平滑重启实际上是让旧的业务进程逐个退出然后并逐个创建新的进程做到的
+
+    * 为了在平滑重启时不影响客用户，这就要求进程中不要保存用户相关的状态信息，**即业务进程最好是无状态的，避免由于进程退出导致信息丢失**
