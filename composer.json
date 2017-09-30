@@ -1,0 +1,5 @@
+{
+    "require": {
+        "workerman/workerman-for-win": "^3.5"
+    }
+}
