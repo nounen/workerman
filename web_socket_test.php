@@ -11,8 +11,6 @@ require_once __DIR__ . '/vendor/autoload.php';
  *
  * 运行命令 php web_socket_test.php start 
  *
- * 访问: 假设服务端ip为127.0.0.1, 在浏览器中访问url http://127.0.0.1:2345
- *
  **/
 
  /**
