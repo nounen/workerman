@@ -16,7 +16,7 @@
 * 主进程 / Worker 子进程 / 客户端 :
 * 1. 客户端与worker进程的关系
 * 2. 主进程与worker子进程关系
-    
+
 
 #### 开发必读: http://doc.workerman.net/329713
 1. workerman不依赖apache或者nginx
@@ -52,7 +52,7 @@
 * 关于WorkerMan依赖的扩展
 
 1. `pcntl` 扩展:
-    * `pcntl` 扩展是 PHP 在 Linux 环境下进程控制的重要扩展. 
+    * `pcntl` 扩展是 PHP 在 Linux 环境下进程控制的重要扩展.
     * **WorkerMan 用到了其进程创建、信号控制、定时器、进程状态监控等特性**。此扩展win平台不支持。
 
 2. `posix` 扩展
@@ -94,3 +94,11 @@ php start.php connections
     * 平滑重启实际上是让旧的业务进程逐个退出然后并逐个创建新的进程做到的
 
     * 为了在平滑重启时不影响客用户，这就要求进程中不要保存用户相关的状态信息，**即业务进程最好是无状态的，避免由于进程退出导致信息丢失**
+
+
+### PHPSocketIO
+* https://github.com/walkor/phpsocket.io
+
+* phpsocket.io 做服务端 , socket.io 做客户端
+
+* 通过事件来进行通讯: `on` 方法监听事件, `emit` 方法触发事件
