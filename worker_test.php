@@ -137,4 +137,5 @@ $worker->onError = function ($connection, $code, $msg) {
 };
 
 // 运行worker
+// Worker::runAll()执行后将永久阻塞，也就是说位于Worker::runAll()后面的代码将不会被执行。所有Worker实例化应该都在Worker::runAll()前进行。
 Worker::runAll();
