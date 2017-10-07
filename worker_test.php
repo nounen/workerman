@@ -58,9 +58,12 @@ $worker->reusePort = true;
 // $worker->user = 'www-data';
 
 // 设置当前Worker实例是否可以reload，即收到reload信号后是否退出重启。不设置默认为true，收到reload信号后自动重启进程
-$worker->reloadable = true;
+$worker->reloadable = false;
 
+// 设置Worker启动时的回调函数，即当Worker启动后立即执行Worker::onWorkerStart成员指定的回调函数
 $worker->onWorkerStart = function ($worker) {
+    echo "回调属性 onWorkerStart\n";
+
     // linux 下运行  `ps -a` 就能看到每个进程
     // 在 kill 某个进程后 workerman 会再次启动它, 并看到如下:
     // worker[Worker Name: 定时器:15556] exit with status 15
@@ -95,6 +98,43 @@ $worker->onWorkerStart = function ($worker) {
     }
 };
 
+// 此特性不常用到 http://doc.workerman.net/315146
+// 子进程收到reload信号默认的动作是退出重启，以便新进程重新加载业务代码完成代码更新。所以reload后子进程在执行完onWorkerReload回调后便立刻退出是正常现象。
+// 如果在收到reload信号后只想让子进程执行onWorkerReload，不想退出，可以在初始化Worker实例时设置对应的Worker实例的reloadable属性为false。
+$worker->onWorkerReload = function ($worker) {
+    echo "回调属性 onWorkerReload\n";
+
+    foreach ($worker->connections as $connection) {
+        $connection->send('worker reloading');
+    }
+};
+
+// http://doc.workerman.net/315147
+// 当客户端与Workerman建立连接时(TCP三次握手完成后)触发的回调函数。每个连接只会触发一次onConnect回调。
+// 注意：onConnect事件仅仅代表客户端与Workerman完成了TCP三次握手，这时客户端还没有发来任何数据，此时除了通过$connection->getRemoteIp()获得对方ip，没有其他可以鉴别客户端的数据或者信息，所以在onConnect事件里无法确认对方是谁。要想知道对方是谁，需要客户端发送鉴权数据，例如某个token或者用户名密码之类，在onMessage回调里做鉴权。
+$worker->onConnect = function ($connection) {
+    echo "回调属性 onConnect\n";
+
+    echo "new connection from ip " . $connection->getRemoteIp() . "\n";
+};
+
+$worker->onClose = function ($connection) {
+    echo "回调属性 onClose\n";
+
+    echo "connection closed\n";
+};
+
+// http://doc.workerman.net/315148
+// $connection 连接对象，即TcpConnection实例，用于操作客户端连接，如发送数据，关闭连接等
+// $data 客户端连接上发来的数据，如果Worker指定了协议，则$data是对应协议decode（解码）了的数据
+$worker->onMessage = function ($connection, $data) {
+    var_dump($data);
+    $connection->send('receive success');
+};
+
+$worker->onError = function ($connection, $code, $msg) {
+    echo "error $code $msg\n";
+};
 
 // 运行worker
 Worker::runAll();
