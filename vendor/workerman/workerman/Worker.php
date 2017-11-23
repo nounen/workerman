@@ -1669,27 +1669,37 @@ class Worker
     /**
      * Construct.
      *
+     * TODO: new Worker() 仅仅是执行了 __construct() 内的代码:
+     *  1. spl_object_hash 作为 workId
+     *  2. 设置静态属性 $_workers $_pidMap
+     *  3. 设置属性 $_autoloadRootPath
+     *  4. stream_context_create 创建资源流上下文
+     *
      * @param string $socket_name
      * @param array  $context_option
      */
     public function __construct($socket_name = '', $context_option = array())
     {
         // Save all worker instances.
-        $this->workerId                  = spl_object_hash($this);
+        $this->workerId = spl_object_hash($this); // 返回指定对象的hash id
+
         static::$_workers[$this->workerId] = $this;
         static::$_pidMap[$this->workerId]  = array();
 
-        // Get autoload root path.
-        $backtrace                = debug_backtrace();
+        // Get autoload root path. 就为了拿一个 _autoloadRootPath 吗?
+        $backtrace = debug_backtrace(); // 产生一条回溯跟踪(backtrace)
+
         $this->_autoloadRootPath = dirname($backtrace[0]['file']);
 
         // Context for socket.
         if ($socket_name) {
             $this->_socketName = $socket_name;
-            if (!isset($context_option['socket']['backlog'])) {
+
+            if (! isset($context_option['socket']['backlog'])) {
                 $context_option['socket']['backlog'] = static::DEFAULT_BACKLOG;
             }
-            $this->_context = stream_context_create($context_option);
+
+            $this->_context = stream_context_create($context_option); // 创建资源流上下文
         }
     }
 
