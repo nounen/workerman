@@ -1675,6 +1675,8 @@ class Worker
      *  3. 设置属性 $_autoloadRootPath
      *  4. stream_context_create 创建资源流上下文
      *
+     *  最后由开发者在外部对 Worker 对象各种配置, 设置属性 (reloadable / onWorkerStart / onConnect / onClose / onMessage / onError), 直到执行 Worker::runAll();
+     *
      * @param string $socket_name
      * @param array  $context_option
      */
