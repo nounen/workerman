@@ -653,15 +653,22 @@ class Worker
 
     /**
      * Parse command.
+     *
+     * 解析命令, eg: php Xxx.php start
+     * $argv[0] 是 Xxx.php
+     * $argv[1] 是 start
+     *
      * php yourfile.php start | stop | restart | reload | status [-d]
      *
      * @return void
      */
     protected static function parseCommand()
     {
-        global $argv;
-        // Check argv;
+        global $argv; // 预定义变量： 传递给脚本的参数数组
+
+        // Check argv; 检查第一个参数
         $start_file = $argv[0];
+
         $available_commands = array(
             'start',
             'stop',
@@ -670,17 +677,21 @@ class Worker
             'status',
             'connections',
         );
+
         $usage = "Usage: php yourfile.php {" . implode('|', $available_commands) . "} [-d]\n";
-        if (!isset($argv[1]) || !in_array($argv[1], $available_commands)) {
+
+        if (! isset($argv[1]) || ! in_array($argv[1], $available_commands)) {
             exit($usage);
         }
 
         // Get command.
         $command  = trim($argv[1]);
-        $command2 = isset($argv[2]) ? $argv[2] : '';
+
+        $command2 = isset($argv[2]) ? $argv[2] : ''; // 可选参数 -d
 
         // Start command.
         $mode = '';
+
         if ($command === 'start') {
             if ($command2 === '-d' || Worker::$daemonize) {
                 $mode = 'in DAEMON mode';
@@ -688,11 +699,17 @@ class Worker
                 $mode = 'in DEBUG mode';
             }
         }
+        
         static::log("Workerman[$start_file] $command $mode");
 
-        // Get master process PID.
-        $master_pid      = is_file(static::$pidFile) ? file_get_contents(static::$pidFile) : 0;
+        // Get master process PID. 从文件拿到主进程 id
+        $master_pid  = is_file(static::$pidFile) ? file_get_contents(static::$pidFile) : 0;
+
+        // 主进程是否存活: 主进程id存在并且能接收到信号， 当前进程id不等于主进程id
+
+        // 发送信号给进程: 将信号sig发送到进程标识符为pid的进程。 http://php.net/manual/zh/function.posix-kill.php
         $master_is_alive = $master_pid && @posix_kill($master_pid, 0) && posix_getpid() != $master_pid;
+
         // Master is still alive?
         if ($master_is_alive) {
             if ($command === 'start') {
@@ -1666,16 +1683,26 @@ class Worker
     /**
      * Log.
      *
+     * 写日志：
+     *  如果是 debug 模式就输出
+     *  如果是进程守护模式就写入日志
+     *
      * @param string $msg
      * @return void
      */
     public static function log($msg)
     {
         $msg = $msg . "\n";
-        if (!static::$daemonize) {
+
+        if (! static::$daemonize) {
             static::safeEcho($msg);
         }
-        file_put_contents((string)static::$logFile, date('Y-m-d H:i:s') . ' ' . 'pid:'. posix_getpid() . ' ' . $msg, FILE_APPEND | LOCK_EX);
+
+        // 返回当前进程 id
+        // http://php.net/manual/zh/function.posix-getpid.php
+        $fullMsg = date('Y-m-d H:i:s') . ' ' . 'pid:'. posix_getpid() . ' ' . $msg;
+
+        file_put_contents((string) static::$logFile, $fullMsg, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -1685,7 +1712,9 @@ class Worker
      */
     public static function safeEcho($msg)
     {
-        if (!function_exists('posix_isatty') || posix_isatty(STDOUT)) {
+        // 确定文件描述符是否是交互式终端
+        // http://php.net/manual/zh/function.posix-isatty.php
+        if (! function_exists('posix_isatty') || posix_isatty(STDOUT)) {
             echo $msg;
         }
     }
@@ -1710,6 +1739,7 @@ class Worker
         $this->workerId = spl_object_hash($this); // 返回指定对象的hash id
 
         static::$_workers[$this->workerId] = $this;
+
         static::$_pidMap[$this->workerId]  = array();
 
         // Get autoload root path. 就为了拿一个 _autoloadRootPath 吗?
