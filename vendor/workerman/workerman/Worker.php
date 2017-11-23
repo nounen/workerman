@@ -434,7 +434,10 @@ class Worker
      */
     public static function runAll()
     {
+        // 检查运行环境 php_sapi_name()
         static::checkSapiEnv();
+
+        // 各种初始化
         static::init();
         static::parseCommand();
         static::daemonize();
@@ -462,20 +465,27 @@ class Worker
 
     /**
      * Init.
+     * 初始化：
+     * 1. 设置 pid 文件， 与 workerman 同级， eg: _home_lazyou_Githubs_workerman_test_SourceWorker.php.pid
+     * 2. 设置且创建 log 文件
+     * 3. 设置属性 _status start_timestamp _statisticsFile 进程名字
+     * 4. 进程id 与 进程数做映射
+     * 5. 定时器初始化
      *
      * @return void
      */
     protected static function init()
     {
         // Start file.
-        $backtrace        = debug_backtrace();
-        static::$_startFile = $backtrace[count($backtrace) - 1]['file'];
+        $backtrace = debug_backtrace();
 
+        static::$_startFile = $backtrace[count($backtrace) - 1]['file'];
 
         $unique_prefix = str_replace('/', '_', static::$_startFile);
 
         // Pid file.
         if (empty(static::$pidFile)) {
+            // eg: _home_lazyou_Githubs_workerman_test_SourceWorker.php.pid
             static::$pidFile = __DIR__ . "/../$unique_prefix.pid";
         }
 
@@ -483,10 +493,12 @@ class Worker
         if (empty(static::$logFile)) {
             static::$logFile = __DIR__ . '/../workerman.log';
         }
-        $log_file = (string)static::$logFile;
-        if (!is_file($log_file)) {
-            touch($log_file);
-            chmod($log_file, 0622);
+
+        $log_file = (string) static::$logFile;
+
+        if (! is_file($log_file)) {
+            touch($log_file); // 设定文件的访问和修改时间, 如果文件不存在，则会被创建。
+            chmod($log_file, 0622); // 改变文件模式
         }
 
         // State.
@@ -494,15 +506,21 @@ class Worker
 
         // For statistics.
         static::$_globalStatistics['start_timestamp'] = time();
-        static::$_statisticsFile                      = sys_get_temp_dir() . "/$unique_prefix.status";
+
+        // eg: /tmp/_home_lazyou_Githubs_workerman_test_SourceWorker.php.status
+        static::$_statisticsFile = sys_get_temp_dir() . "/$unique_prefix.status"; // 返回用于临时文件的目录
 
         // Process title.
-        static::setProcessTitle('WorkerMan: master process  start_file=' . static::$_startFile);
+        static::setProcessTitle('WorkerMan: master process  start_file = ' . static::$_startFile);
+
+        aide('aide -- WorkerMan: master process start_file = ' . static::$_startFile);
 
         // Init data for worker id.
+        // 进程数据初始化： 进程id 与 进程数做映射
         static::initId();
 
         // Timer init.
+        // 定时器初始化
         Timer::init();
     }
 
@@ -575,15 +593,19 @@ class Worker
 
     /**
      * Init idMap.
+     *
+     * 进程id 与 进程数 做映射
      * return void
      */
     protected static function initId()
     {
         foreach (static::$_workers as $worker_id => $worker) {
             $new_id_map = array();
+
             for($key = 0; $key < $worker->count; $key++) {
                 $new_id_map[$key] = isset(static::$_idMap[$worker_id][$key]) ? static::$_idMap[$worker_id][$key] : 0;
             }
+
             static::$_idMap[$worker_id] = $new_id_map;
         }
     }
@@ -1163,6 +1185,8 @@ class Worker
     /**
      * Set process name.
      *
+     * 设置进程的标题
+     *
      * @param string $title
      * @return void
      */
@@ -1170,7 +1194,7 @@ class Worker
     {
         // >=php 5.5
         if (function_exists('cli_set_process_title')) {
-            @cli_set_process_title($title);
+            @cli_set_process_title($title); // 设置进程的标题
         } // Need proctitle when php<=5.5 .
         elseif (extension_loaded('proctitle') && function_exists('setproctitle')) {
             @setproctitle($title);

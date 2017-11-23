@@ -12,6 +12,16 @@
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
+function dd($val) {
+    print_r($val);
+    exit;
+}
+
+// 辅助输出函数
+function aide($str) {
+    echo $str . "\n";
+}
+
 // Date.timezone
 if (!ini_get('date.timezone')) {
     date_default_timezone_set('Asia/Shanghai');
