@@ -439,8 +439,14 @@ class Worker
 
         // 各种初始化
         static::init();
+
+        // 解析命令: php Xxx.php start | stop | restart | reload | status [-d]
         static::parseCommand();
+
+        // 进程守护
         static::daemonize();
+
+
         static::initWorkers();
         static::installSignal();
         static::saveMasterPid();
@@ -707,17 +713,20 @@ class Worker
 
         // 主进程是否存活: 主进程id存在并且能接收到信号， 当前进程id不等于主进程id
 
-        // 发送信号给进程: 将信号sig发送到进程标识符为pid的进程。 http://php.net/manual/zh/function.posix-kill.php
+        // 发送信号给进程: 将信号sig发送到进程标识符为pid的进程.
+        // http://php.net/manual/zh/function.posix-kill.php
         $master_is_alive = $master_pid && @posix_kill($master_pid, 0) && posix_getpid() != $master_pid;
 
         // Master is still alive?
         if ($master_is_alive) {
             if ($command === 'start') {
                 static::log("Workerman[$start_file] already running");
+
                 exit;
             }
         } elseif ($command !== 'start' && $command !== 'restart') {
             static::log("Workerman[$start_file] not run");
+
             exit;
         }
 
@@ -727,86 +736,121 @@ class Worker
                 if ($command2 === '-d') {
                     Worker::$daemonize = true;
                 }
+
                 break;
             case 'status':
+                // 查看状态: /tmp/_mnt_codes_workerman_test_SourceWorker.php.status
                 while (1) {
                     if (is_file(static::$_statisticsFile)) {
+                        // 删除文件
                         @unlink(static::$_statisticsFile);
                     }
+
                     // Master process will send SIGUSR2 signal to all child processes.
                     posix_kill($master_pid, SIGUSR2);
+
                     // Sleep 1 second.
                     sleep(1);
+
                     // Clear terminal.
                     if ($command2 === '-d') {
                         echo "\33[H\33[2J\33(B\33[m";
                     }
+
                     // Echo status data.
+                    // 格式化输出状态
                     echo static::formatStatusData();
+
                     if ($command2 !== '-d') {
                         exit(0);
                     }
+
                     echo "\nPress Ctrl+C to quit.\n\n";
                 }
+
                 exit(0);
             case 'connections':
                 if (is_file(static::$_statisticsFile)) {
                     @unlink(static::$_statisticsFile);
                 }
+
                 // Master process will send SIGIO signal to all child processes.
                 posix_kill($master_pid, SIGIO);
+
                 // Waiting amoment.
                 usleep(500000);
+
                 // Display statisitcs data from a disk file.
                 @readfile(static::$_statisticsFile);
+
                 exit(0);
             case 'restart':
             case 'stop':
                 if ($command2 === '-g') {
                     static::$_gracefulStop = true;
+
                     $sig = SIGTERM;
+
                     static::log("Workerman[$start_file] is gracefully stoping ...");
                 } else {
                     static::$_gracefulStop = false;
+
                     $sig = SIGINT;
+
                     static::log("Workerman[$start_file] is stoping ...");
                 }
+
                 // Send stop signal to master process.
+                // 向主进程发送 stop 信号
+                // TODO: $sig 对应的常量值代表什么意思?
                 $master_pid && posix_kill($master_pid, $sig);
+
                 // Timeout.
-                $timeout    = 5;
+                $timeout = 5;
                 $start_time = time();
+
                 // Check master process is still alive?
                 while (1) {
                     $master_is_alive = $master_pid && posix_kill($master_pid, 0);
+
                     if ($master_is_alive) {
                         // Timeout?
-                        if (!static::$_gracefulStop && time() - $start_time >= $timeout) {
+                        if (! static::$_gracefulStop && time() - $start_time >= $timeout) {
                             static::log("Workerman[$start_file] stop fail");
+
                             exit;
                         }
+
                         // Waiting amoment.
                         usleep(10000);
+
                         continue;
                     }
+
                     // Stop success.
                     static::log("Workerman[$start_file] stop success");
+
                     if ($command === 'stop') {
                         exit(0);
                     }
+
                     if ($command2 === '-d') {
                         Worker::$daemonize = true;
                     }
+
                     break;
                 }
+
                 break;
             case 'reload':
                 if($command2 === '-g'){
                     $sig = SIGQUIT;
-                }else{
+                } else {
                     $sig = SIGUSR1;
                 }
+
                 posix_kill($master_pid, $sig);
+
                 exit;
             default :
                 exit($usage);
@@ -821,35 +865,48 @@ class Worker
     protected static function formatStatusData()
     {
         static $total_request_cache = array();
+
+        // 把整个文件读入一个数组中
         $info = @file(static::$_statisticsFile, FILE_IGNORE_NEW_LINES);
-        if (!$info) {
+
+        if (! $info) {
             return '';
         }
+
         $status_str = '';
         $current_total_request = array();
+
         $worker_info = json_decode($info[0], true);
+
         ksort($worker_info, SORT_NUMERIC);
         unset($info[0]);
+
         $data_waiting_sort = array();
         $read_process_status = false;
+
         foreach($info as $key => $value) {
-            if (!$read_process_status) {
+            if (! $read_process_status) {
                 $status_str .= $value . "\n";
+
                 if (preg_match('/^pid.*?memory.*?listening/', $value)) {
                     $read_process_status = true;
                 }
+
                 continue;
             }
+
             if(preg_match('/^[0-9]+/', $value, $pid_math)) {
                 $pid = $pid_math[0];
                 $data_waiting_sort[$pid] = $value;
+
                 if(preg_match('/^\S+?\s+?\S+?\s+?\S+?\s+?\S+?\s+?\S+?\s+?\S+?\s+?\S+?\s+?(\S+?)\s+?/', $value, $match)) {
                     $current_total_request[$pid] = $match[1];
                 }
             }
         }
+
         foreach($worker_info as $pid => $info) {
-            if (!isset($data_waiting_sort[$pid])) {
+            if (! isset($data_waiting_sort[$pid])) {
                 $status_str .= "$pid\t" . str_pad('N/A', 7) . " "
                     . str_pad($info['listen'], static::$_maxSocketNameLength) . " "
                     . str_pad($info['name'], static::$_maxWorkerNameLength) . " "
@@ -857,15 +914,19 @@ class Worker
                     . str_pad('N/A', 7) . " " . str_pad('N/A', 13) . " N/A    [busy] \n";
                 continue;
             }
+
             //$qps = isset($total_request_cache[$pid]) ? $current_total_request[$pid]
             if (!isset($total_request_cache[$pid]) || !isset($current_total_request[$pid])) {
                 $qps = 0;
             } else {
                 $qps = $current_total_request[$pid] - $total_request_cache[$pid];
             }
+
             $status_str .= $data_waiting_sort[$pid]. " " . str_pad($qps, 6) ." [idle]\n";
         }
+
         $total_request_cache = $current_total_request;
+
         return $status_str;
     }
 
@@ -967,25 +1028,37 @@ class Worker
     /**
      * Run as deamon mode.
      *
+     * 通过 pcntl_fork 产生子进程达到进程守护的目的?
+     *
      * @throws Exception
      */
     protected static function daemonize()
     {
-        if (!static::$daemonize) {
+        if (! static::$daemonize) {
             return;
         }
+
+        // 改变当前的 umask. TODO: 表示看了文档也没懂这句话的意思
         umask(0);
+
+        // 在当前进程当前位置产生分支（子进程）。
+        // 译注：fork 是创建了一个子进程，父进程和子进程 都从 fork 的位置开始向下继续执行，不同的是父进程执行过程中，得到的 fork 返回值为子进程 号，而子进程得到的是 0。
         $pid = pcntl_fork();
+
         if (-1 === $pid) {
             throw new Exception('fork fail');
         } elseif ($pid > 0) {
             exit(0);
         }
+
+        // Make the current process a session leader. TODO: 也没看懂
         if (-1 === posix_setsid()) {
             throw new Exception("setsid fail");
         }
+
         // Fork again avoid SVR4 system regain the control of terminal.
         $pid = pcntl_fork();
+
         if (-1 === $pid) {
             throw new Exception("fork fail");
         } elseif (0 !== $pid) {
