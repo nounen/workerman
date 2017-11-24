@@ -446,8 +446,9 @@ class Worker
         // 进程守护
         static::daemonize();
 
-
+        // 初始化每个 worker: 重点在 listen()
         static::initWorkers();
+
         static::installSignal();
         static::saveMasterPid();
         static::displayUI();
@@ -545,12 +546,14 @@ class Worker
 
             // Get maximum length of worker name.
             $worker_name_length = strlen($worker->name);
+
             if (static::$_maxWorkerNameLength < $worker_name_length) {
                 static::$_maxWorkerNameLength = $worker_name_length;
             }
 
             // Get maximum length of socket name.
             $socket_name_length = strlen($worker->getSocketName());
+
             if (static::$_maxSocketNameLength < $socket_name_length) {
                 static::$_maxSocketNameLength = $socket_name_length;
             }
@@ -559,6 +562,7 @@ class Worker
             if (empty($worker->user)) {
                 $worker->user = static::getCurrentUser();
             } else {
+                // posix_getuid(): 返回当前进程的真实用户 ID
                 if (posix_getuid() !== 0 && $worker->user != static::getCurrentUser()) {
                     static::log('Warning: You must have the root privileges to change uid and gid.');
                 }
@@ -566,12 +570,13 @@ class Worker
 
             // Get maximum length of unix user name.
             $user_name_length = strlen($worker->user);
+
             if (static::$_maxUserNameLength < $user_name_length) {
                 static::$_maxUserNameLength = $user_name_length;
             }
 
             // Listen.
-            if (!$worker->reusePort) {
+            if (! $worker->reusePort) {
                 $worker->listen();
             }
         }
@@ -623,7 +628,9 @@ class Worker
      */
     protected static function getCurrentUser()
     {
+        // posix_getpwuid(): 通过用户id返回用户信息
         $user_info = posix_getpwuid(posix_getuid());
+
         return $user_info['name'];
     }
 
@@ -1836,33 +1843,41 @@ class Worker
     /**
      * Listen.
      *
+     * socket 服务相关的各种设置: 协议 / ssl / 无阻塞模式
+     *
      * @throws Exception
      */
     public function listen()
     {
-        if (!$this->_socketName) {
+        if (! $this->_socketName) {
             return;
         }
 
         // Autoload.
         Autoloader::setRootPath($this->_autoloadRootPath);
 
-        if (!$this->_mainSocket) {
+        if (! $this->_mainSocket) {
             // Get the application layer communication protocol and listening address.
+            // $this->_socketName 例如: websocket://0.0.0.0:8585
             list($scheme, $address) = explode(':', $this->_socketName, 2);
+
             // Check application layer protocol class.
-            if (!isset(static::$_builtinTransports[$scheme])) {
-                $scheme         = ucfirst($scheme);
+            // 是否内置传输协议
+            if (! isset(static::$_builtinTransports[$scheme])) {
+                $scheme = ucfirst($scheme);
+
                 $this->protocol = '\\Protocols\\' . $scheme;
-                if (!class_exists($this->protocol)) {
+
+                if (! class_exists($this->protocol)) {
                     $this->protocol = "\\Workerman\\Protocols\\$scheme";
-                    if (!class_exists($this->protocol)) {
+
+                    if (! class_exists($this->protocol)) {
                         throw new Exception("class \\Protocols\\$scheme not exist");
                     }
                 }
 
-                if (!isset(static::$_builtinTransports[$this->transport])) {
-                    throw new \Exception('Bad worker->transport ' . var_export($this->transport, true));
+                if (! isset(static::$_builtinTransports[$this->transport])) {
+                    throw new Exception('Bad worker->transport ' . var_export($this->transport, true));
                 }
             } else {
                 $this->transport = $scheme;
@@ -1871,27 +1886,35 @@ class Worker
             $local_socket = static::$_builtinTransports[$this->transport] . ":" . $address;
 
             // Flag.
-            $flags = $this->transport === 'udp' ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
+            $flags = $this->transport === 'udp' ?
+                        STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN;
             $errno = 0;
             $errmsg = '';
+
             // SO_REUSEPORT.
             if ($this->reusePort) {
+                // 对资源流、数据包或者上下文设置参数
                 stream_context_set_option($this->_context, 'socket', 'so_reuseport', 1);
             }
 
             // Create an Internet or Unix domain server socket.
+            // 创建一个Internet或Unix域服务器套接字
             $this->_mainSocket = stream_socket_server($local_socket, $errno, $errmsg, $flags, $this->_context);
-            if (!$this->_mainSocket) {
+
+            if (! $this->_mainSocket) {
                 throw new Exception($errmsg);
             }
 
             if ($this->transport === 'ssl') {
+                // 在已经连接的套接字上打开/关闭加密
                 stream_socket_enable_crypto($this->_mainSocket, false);
             } elseif ($this->transport === 'unix') {
                 $socketFile = substr($address, 2);
+
                 if ($this->user) {
                     chown($socketFile, $this->user);
                 }
+
                 if ($this->group) {
                     chgrp($socketFile, $this->group);
                 }
@@ -1905,9 +1928,11 @@ class Worker
             }
 
             // Non blocking.
+            // 为资源流设置阻塞或者阻塞模式. 0 无阻塞模式
             stream_set_blocking($this->_mainSocket, 0);
         }
 
+        // 事件监听
         $this->resumeAccept();
     }
 
@@ -1940,18 +1965,24 @@ class Worker
     /**
      * Resume accept new connections.
      *
+     * 事件监听
+     *
      * @return void
      */
     public function resumeAccept()
     {
         // Register a listener to be notified when server socket is ready to read.
+        // 当服务器套接字准备读取时，注册一个监听器。
+        // TODO: 这里的 event 到底用了什么
         if (static::$globalEvent && true === $this->_pauseAccept && $this->_mainSocket) {
+
             if ($this->transport !== 'udp') {
                 static::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ, array($this, 'acceptConnection'));
             } else {
                 static::$globalEvent->add($this->_mainSocket, EventInterface::EV_READ,
                     array($this, 'acceptUdpConnection'));
             }
+
             $this->_pauseAccept = false;
         }
     }
