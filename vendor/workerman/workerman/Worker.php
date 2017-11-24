@@ -449,7 +449,9 @@ class Worker
         // 初始化每个 worker: 重点在 listen()
         static::initWorkers();
 
+        // 安装各种信号处理器: 处理 stop reload status 等
         static::installSignal();
+
         static::saveMasterPid();
         static::displayUI();
         static::forkWorkers();
@@ -940,23 +942,29 @@ class Worker
 
     /**
      * Install signal handler.
-     *
+     * 安装各种信号处理器: 处理 stop reload status 等
      * @return void
      */
     protected static function installSignal()
     {
         // stop
         pcntl_signal(SIGINT, array('\Workerman\Worker', 'signalHandler'), false);
+
         // graceful stop
         pcntl_signal(SIGTERM, array('\Workerman\Worker', 'signalHandler'), false);
+
         // reload
         pcntl_signal(SIGUSR1, array('\Workerman\Worker', 'signalHandler'), false);
+
         // graceful reload
         pcntl_signal(SIGQUIT, array('\Workerman\Worker', 'signalHandler'), false);
+
         // status
         pcntl_signal(SIGUSR2, array('\Workerman\Worker', 'signalHandler'), false);
+
         // connection status
         pcntl_signal(SIGIO, array('\Workerman\Worker', 'signalHandler'), false);
+
         // ignore
         pcntl_signal(SIGPIPE, SIG_IGN, false);
     }
