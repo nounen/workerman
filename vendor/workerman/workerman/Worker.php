@@ -453,9 +453,16 @@ class Worker
         static::installSignal();
 
         static::saveMasterPid();
+
+        // 运行状态输出
         static::displayUI();
+
+        // 多线程
         static::forkWorkers();
+
+        // 重置标准输入输出
         static::resetStd();
+
         static::monitorWorkers();
     }
 
@@ -644,8 +651,11 @@ class Worker
     protected static function displayUI()
     {
         static::safeEcho("\033[1A\n\033[K-----------------------\033[47;30m WORKERMAN \033[0m-----------------------------\n\033[0m");
+
         static::safeEcho('Workerman version:'. Worker::VERSION. "          PHP version:". PHP_VERSION. "\n");
+
         static::safeEcho("------------------------\033[47;30m WORKERS \033[0m-------------------------------\n");
+
         static::safeEcho("\033[47;30muser\033[0m". str_pad('',
                 static::$_maxUserNameLength + 2 - strlen('user')). "\033[47;30mworker\033[0m". str_pad('',
                 static::$_maxWorkerNameLength + 2 - strlen('worker')). "\033[47;30mlisten\033[0m". str_pad('',
@@ -656,10 +666,14 @@ class Worker
                     static::$_maxWorkerNameLength + 2). str_pad($worker->getSocketName(),
                     static::$_maxSocketNameLength + 2). str_pad(' ' . $worker->count, 9). " \033[32;40m [OK] \033[0m\n");
         }
+
         static::safeEcho("----------------------------------------------------------------\n");
+
         if (static::$daemonize) {
             global $argv;
+
             $start_file = $argv[0];
+
             static::safeEcho("Input \"php $start_file stop\" to quit. Start success.\n\n");
         } else {
             static::safeEcho("Press Ctrl+C to quit. Start success.\n");
@@ -978,24 +992,34 @@ class Worker
     {
         // uninstall stop signal handler
         pcntl_signal(SIGINT, SIG_IGN, false);
+
         // uninstall graceful stop signal handler
         pcntl_signal(SIGTERM, SIG_IGN, false);
+
         // uninstall reload signal handler
         pcntl_signal(SIGUSR1, SIG_IGN, false);
+
         // uninstall graceful reload signal handler
         pcntl_signal(SIGQUIT, SIG_IGN, false);
+
         // uninstall status signal handler
         pcntl_signal(SIGUSR2, SIG_IGN, false);
+
         // reinstall stop signal handler
         static::$globalEvent->add(SIGINT, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
+
         // reinstall graceful stop signal handler
         static::$globalEvent->add(SIGTERM, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
+
         // reinstall reload signal handler
         static::$globalEvent->add(SIGUSR1, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
+
         // reinstall graceful reload signal handler
         static::$globalEvent->add(SIGQUIT, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
+
         // reinstall  status signal handler
         static::$globalEvent->add(SIGUSR2, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
+
         // reinstall connection status signal handler
         static::$globalEvent->add(SIGIO, EventInterface::EV_SIGNAL, array('\Workerman\Worker', 'signalHandler'));
     }
@@ -1084,20 +1108,29 @@ class Worker
     /**
      * Redirect standard input and output.
      *
+     * 重定向标准输入输出
+     *
      * @throws Exception
      */
     public static function resetStd()
     {
-        if (!static::$daemonize) {
+        if (! static::$daemonize) {
             return;
         }
+
         global $STDOUT, $STDERR;
+
         $handle = fopen(static::$stdoutFile, "a");
+
         if ($handle) {
             unset($handle);
+
             @fclose(STDOUT);
+
             @fclose(STDERR);
+
             $STDOUT = fopen(static::$stdoutFile, "a");
+
             $STDERR = fopen(static::$stdoutFile, "a");
         } else {
             throw new Exception('can not open stdoutFile ' . static::$stdoutFile);
@@ -1112,6 +1145,7 @@ class Worker
     protected static function saveMasterPid()
     {
         static::$_masterPid = posix_getpid();
+
         if (false === @file_put_contents(static::$pidFile, static::$_masterPid)) {
             throw new Exception('can not save pid to ' . static::$pidFile);
         }
@@ -1119,6 +1153,8 @@ class Worker
 
     /**
      * Get event loop name.
+     *
+     * 获取事件循环类, 优先从扩展, 没有就拿 php 实现的 event
      *
      * @return string
      */
@@ -1129,9 +1165,12 @@ class Worker
         }
 
         $loop_name = '';
-        foreach (static::$_availableEventLoops as $name=>$class) {
+
+        // 分析是否 libevent 扩展 或 event 扩展
+        foreach (static::$_availableEventLoops as $name => $class) {
             if (extension_loaded($name)) {
                 $loop_name = $name;
+
                 break;
             }
         }
@@ -1153,8 +1192,11 @@ class Worker
                 static::$eventLoopClass = static::$_availableEventLoops[$loop_name];
             }
         } else {
-            static::$eventLoopClass = interface_exists('\React\EventLoop\LoopInterface')? '\Workerman\Events\React\StreamSelectLoop':'\Workerman\Events\Select';
+            static::$eventLoopClass = interface_exists('\React\EventLoop\LoopInterface') ?
+                                        '\Workerman\Events\React\StreamSelectLoop' :
+                                        '\Workerman\Events\Select';
         }
+
         return static::$eventLoopClass;
     }
 
@@ -1182,17 +1224,22 @@ class Worker
     protected static function forkWorkers()
     {
         foreach (static::$_workers as $worker) {
+
             if (static::$_status === static::STATUS_STARTING) {
+
                 if (empty($worker->name)) {
                     $worker->name = $worker->getSocketName();
                 }
+
                 $worker_name_length = strlen($worker->name);
+
                 if (static::$_maxWorkerNameLength < $worker_name_length) {
                     static::$_maxWorkerNameLength = $worker_name_length;
                 }
             }
 
             $worker->count = $worker->count <= 0 ? 1 : $worker->count;
+
             while (count(static::$_pidMap[$worker->workerId]) < $worker->count) {
                 static::forkOneWorker($worker);
             }
@@ -1209,31 +1256,46 @@ class Worker
     {
         // Get available worker id.
         $id = static::getId($worker->workerId, 0);
+
         if ($id === false) {
             return;
         }
+
         $pid = pcntl_fork();
-        // For master process.
+
+        // For master process. 主线程
         if ($pid > 0) {
             static::$_pidMap[$worker->workerId][$pid] = $pid;
+
             static::$_idMap[$worker->workerId][$id]   = $pid;
-        } // For child processes.
-        elseif (0 === $pid) {
+        } elseif (0 === $pid) { // For child processes. 子线程
             if ($worker->reusePort) {
                 $worker->listen();
             }
+
             if (static::$_status === static::STATUS_STARTING) {
                 static::resetStd();
             }
+
             static::$_pidMap  = array();
+
             static::$_workers = array($worker->workerId => $worker);
+
             Timer::delAll();
+
             static::setProcessTitle('WorkerMan: worker process  ' . $worker->name . ' ' . $worker->getSocketName());
+
+            // 为当前线程设置用户和用户组
             $worker->setUserAndGroup();
+
             $worker->id = $id;
+
             $worker->run();
+
             $err = new Exception('event-loop exited');
+
             static::log($err);
+
             exit(250);
         } else {
             throw new Exception("forkOneWorker fail");
@@ -1256,24 +1318,33 @@ class Worker
     /**
      * Set unix user and group for current process.
      *
+     * 设置当前进程的unix用户和组
+     *
      * @return void
      */
     public function setUserAndGroup()
     {
-        // Get uid.
+        // Get uid. Return info about a user by username
         $user_info = posix_getpwnam($this->user);
-        if (!$user_info) {
+
+        if (! $user_info) {
             static::log("Warning: User {$this->user} not exsits");
+
             return;
         }
+
         $uid = $user_info['uid'];
+
         // Get gid.
         if ($this->group) {
+            //  Return info about a group by name
             $group_info = posix_getgrnam($this->group);
+
             if (!$group_info) {
                 static::log("Warning: Group {$this->group} not exsits");
                 return;
             }
+
             $gid = $group_info['gid'];
         } else {
             $gid = $user_info['gid'];
@@ -1281,7 +1352,7 @@ class Worker
 
         // Set uid and gid.
         if ($uid != posix_getuid() || $gid != posix_getgid()) {
-            if (!posix_setgid($gid) || !posix_initgroups($user_info['name'], $gid) || !posix_setuid($uid)) {
+            if (! posix_setgid($gid) || ! posix_initgroups($user_info['name'], $gid) || ! posix_setuid($uid)) {
                 static::log("Warning: change gid or uid fail.");
             }
         }
@@ -1309,52 +1380,66 @@ class Worker
     /**
      * Monitor all child processes.
      *
+     * 监控所有的子进程
+     *
      * @return void
      */
     protected static function monitorWorkers()
     {
         static::$_status = static::STATUS_RUNNING;
+
         while (1) {
             // Calls signal handlers for pending signals.
+            // 调用等待信号的处理器
             pcntl_signal_dispatch();
+
             // Suspends execution of the current process until a child has exited, or until a signal is delivered
             $status = 0;
             $pid    = pcntl_wait($status, WUNTRACED);
+
             // Calls signal handlers for pending signals again.
             pcntl_signal_dispatch();
+
             // If a child has already exited.
             if ($pid > 0) {
                 // Find out witch worker process exited.
                 foreach (static::$_pidMap as $worker_id => $worker_pid_array) {
+
                     if (isset($worker_pid_array[$pid])) {
                         $worker = static::$_workers[$worker_id];
+
                         // Exit status.
                         if ($status !== 0) {
                             static::log("worker[" . $worker->name . ":$pid] exit with status $status");
                         }
 
                         // For Statistics.
-                        if (!isset(static::$_globalStatistics['worker_exit_info'][$worker_id][$status])) {
+                        if (! isset(static::$_globalStatistics['worker_exit_info'][$worker_id][$status])) {
                             static::$_globalStatistics['worker_exit_info'][$worker_id][$status] = 0;
                         }
+
                         static::$_globalStatistics['worker_exit_info'][$worker_id][$status]++;
 
                         // Clear process data.
                         unset(static::$_pidMap[$worker_id][$pid]);
 
                         // Mark id is available.
-                        $id                            = static::getId($worker_id, $pid);
+                        $id = static::getId($worker_id, $pid);
+
                         static::$_idMap[$worker_id][$id] = 0;
 
                         break;
                     }
                 }
+
                 // Is still running state then fork a new worker process.
                 if (static::$_status !== static::STATUS_SHUTDOWN) {
                     static::forkWorkers();
+
                     // If reloading continue.
                     if (isset(static::$_pidsToRestart[$pid])) {
                         unset(static::$_pidsToRestart[$pid]);
+
                         static::reload();
                     }
                 } else {
@@ -1406,7 +1491,9 @@ class Worker
             // Set reloading state.
             if (static::$_status !== static::STATUS_RELOADING && static::$_status !== static::STATUS_SHUTDOWN) {
                 static::log("Workerman[" . basename(static::$_startFile) . "] reloading");
+
                 static::$_status = static::STATUS_RELOADING;
+
                 // Try to emit onMasterReload callback.
                 if (static::$onMasterReload) {
                     try {
@@ -1418,6 +1505,7 @@ class Worker
                         static::log($e);
                         exit(250);
                     }
+
                     static::initId();
                 }
             }
@@ -1430,8 +1518,10 @@ class Worker
 
             // Send reload signal to all child processes.
             $reloadable_pid_array = array();
+
             foreach (static::$_pidMap as $worker_id => $worker_pid_array) {
                 $worker = static::$_workers[$worker_id];
+
                 if ($worker->reloadable) {
                     foreach ($worker_pid_array as $pid) {
                         $reloadable_pid_array[$pid] = $pid;
@@ -1452,20 +1542,25 @@ class Worker
                 if (static::$_status !== static::STATUS_SHUTDOWN) {
                     static::$_status = static::STATUS_RUNNING;
                 }
+
                 return;
             }
+
             // Continue reload.
             $one_worker_pid = current(static::$_pidsToRestart);
+
             // Send reload signal to a worker process.
             posix_kill($one_worker_pid, $sig);
+
             // If the process does not exit after static::KILL_WORKER_TIMER_TIME seconds try to kill it.
-            if(!static::$_gracefulStop){
+            if(! static::$_gracefulStop){
                 Timer::add(static::KILL_WORKER_TIMER_TIME, 'posix_kill', array($one_worker_pid, SIGKILL), false);
             }
-        } // For child processes.
-        else {
+        } else { // For child processes.
             reset(static::$_workers);
+
             $worker = current(static::$_workers);
+
             // Try to emit onWorkerReload callback.
             if ($worker->onWorkerReload) {
                 try {
@@ -1493,34 +1588,41 @@ class Worker
     public static function stopAll()
     {
         static::$_status = static::STATUS_SHUTDOWN;
+
         // For master process.
         if (static::$_masterPid === posix_getpid()) {
             static::log("Workerman[" . basename(static::$_startFile) . "] stopping ...");
+
             $worker_pid_array = static::getAllWorkerPids();
+
             // Send stop signal to all child processes.
             if (static::$_gracefulStop) {
                 $sig = SIGTERM;
             } else {
                 $sig = SIGINT;
             }
+
             foreach ($worker_pid_array as $worker_pid) {
                 posix_kill($worker_pid, $sig);
-                if(!static::$_gracefulStop){
+
+                if(! static::$_gracefulStop){
                     Timer::add(static::KILL_WORKER_TIMER_TIME, 'posix_kill', array($worker_pid, SIGKILL), false);
                 }
             }
+
             // Remove statistics file.
             if (is_file(static::$_statisticsFile)) {
                 @unlink(static::$_statisticsFile);
             }
-        } // For child processes.
-        else {
+        } else { // For child processes.
             // Execute exit.
             foreach (static::$_workers as $worker) {
                 $worker->stop();
             }
-            if (!static::$_gracefulStop || ConnectionInterface::$statistics['connection_count'] <= 0) {
+
+            if (! static::$_gracefulStop || ConnectionInterface::$statistics['connection_count'] <= 0) {
                 static::$globalEvent->destroy();
+
                 exit(0);
             }
         }
@@ -2008,23 +2110,32 @@ class Worker
     /**
      * Run worker instance.
      *
+     * 实例化每个线程:
+     *  注册 register_shutdown_function.
+     *  获取事件循环类 (优先从 libevent event) , 并实例
+     *
      * @return void
      */
     public function run()
     {
-        //Update process state.
+        // Update process state.
         static::$_status = static::STATUS_RUNNING;
 
         // Register shutdown function for checking errors.
+        // 注册一个会在 php 中止时执行的函数
+        // 如果进程被信号SIGTERM或SIGKILL杀死，那么中止函数将不会被调用。尽管你无法中断SIGKILL，但你可以通过pcntl_signal() 来捕获SIGTERM，通过在其中调用exit()来进行一个正常的中止。
         register_shutdown_function(array("\\Workerman\\Worker", 'checkErrors'));
 
         // Set autoload root path.
         Autoloader::setRootPath($this->_autoloadRootPath);
 
         // Create a global event loop.
-        if (!static::$globalEvent) {
+        if (! static::$globalEvent) {
             $event_loop_class = static::getEventLoopName();
+
+            // 实例事件循环类
             static::$globalEvent = new $event_loop_class;
+
             $this->resumeAccept();
         }
 
@@ -2045,13 +2156,17 @@ class Worker
                 call_user_func($this->onWorkerStart, $this);
             } catch (\Exception $e) {
                 static::log($e);
+
                 // Avoid rapid infinite loop exit.
                 sleep(1);
+
                 exit(250);
             } catch (\Error $e) {
                 static::log($e);
+
                 // Avoid rapid infinite loop exit.
                 sleep(1);
+
                 exit(250);
             }
         }
@@ -2079,16 +2194,20 @@ class Worker
                 exit(250);
             }
         }
+
         // Remove listener for server socket.
         $this->unlisten();
+
         // Close all connections for the worker.
-        if (!static::$_gracefulStop) {
+        if (! static::$_gracefulStop) {
             foreach ($this->connections as $connection) {
                 $connection->close();
             }
         }
+
         // Clear callback.
         $this->onMessage = $this->onClose = $this->onError = $this->onBufferDrain = $this->onBufferFull = null;
+
         // Remove worker instance from static::$_workers.
         unset(static::$_workers[$this->workerId]);
     }

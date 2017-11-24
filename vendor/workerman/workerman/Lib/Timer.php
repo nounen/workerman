@@ -192,6 +192,7 @@ class Timer
     {
         self::$_tasks = array();
 
+        // 为进程设置一个alarm闹钟信号. 如果seconds设置为0,将不会创建alarm信号。
         pcntl_alarm(0);
 
         if (self::$_event) {
