@@ -6,7 +6,9 @@
  *
  * 需要借助文档理解, EventBase 和 Event 这两个类的使用.
  *
- * 也没理解这段代码怎么使用? 如何访问
+ * TODO:
+ *  1. 没理解这段代码怎么使用? 如何访问
+ *  2. 如果没有 Event 有什么区别?
  */
 
 $fd = stream_socket_server("tcp://0.0.0.1:9001", $errno, $errstr);
