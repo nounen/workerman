@@ -2,11 +2,15 @@
 
 /**
  * 访问 http://xx.xx.xx.xx:8090/ 看到输出
+ *
+ * 同时在浏览器打开多个标签访问, 发现结果输出都是例如下面的:
+ * Hi 2017-11-27 15:28:41 2017-11-27 15:28:49
+ * Hi 2017-11-27 15:28:49 2017-11-27 15:28:54
+ *
+ * TODO: 这就是所谓阻塞模式?
  */
 
 $fd = stream_socket_server("tcp://0.0.0.0:8090", $errno, $errstr);
-
-stream_set_blocking($fd, 0);      //设置成非阻塞方式
 
 while (true) {
     $startDate = date('Y-m-d H:i:s');
