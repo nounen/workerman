@@ -15,6 +15,7 @@ if ($pid > 0) {
 
     exit(0);
 } elseif ($pid == 0) {
+    // TODO: 看不懂
     $event_base = new EventBase();
 
     $event = Event::signal($event_base, SIGINT, function () use (&$event, &$event_base) {
