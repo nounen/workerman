@@ -46,7 +46,7 @@
 9. 支持更高并发
 
 
-#### 特性: http://doc.workerman.net/315112
+#### 特性: http://doc.workerman.net/315112 (http://www.workerman.net/features)
 1. 纯PHP开发
 2. 支持PHP多进程
 3. 支持TCP、UDP
