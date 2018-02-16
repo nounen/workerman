@@ -2,7 +2,7 @@
 
 use Workerman\Worker;
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
 /**
  * http://doc.workerman.net/315113
@@ -24,6 +24,8 @@ $ws_worker->count = 4;
 
 // 当收到客户端发来的数据后返回hello $data给客户端
 $ws_worker->onMessage = function($connection, $data) {
+    var_dump("收到数据: " . $data);
+
     // 向客户端发送hello $data
     $connection->send('hello ' . $data);
 };
