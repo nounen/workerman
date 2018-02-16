@@ -3,7 +3,8 @@
 
 * 注意阅读手册里的每一章
 
-
+### GatewayWorker 与 Workerman的关系
+* Workerman可以看做是一个纯粹的socket类库，可以开发几乎所有的网络应用，不管是TCP的还是UDP的，长连接的还是短连接的。Workerman代码精简，功能强大，使用灵活，能够快速开发出各种网络应用。同时Workerman相比GatewayWorker也更底层，需要开发者有一定的多进程编程经验。
 
 ### 必读章节
 
