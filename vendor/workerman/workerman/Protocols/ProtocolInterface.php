@@ -1,4 +1,11 @@
 <?php
+
+/**
+ * 
+ * 通讯协议接口: http://doc.workerman.net/315125
+ * 
+ */
+
 /**
  * This file is part of workerman.
  *
